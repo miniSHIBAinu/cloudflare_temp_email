@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="initial-scale=1"/>
+  <title>Thêm Domain — TempMail</title>
+  <meta name="description" content="Hướng dẫn kết nối domain riêng vào hệ thống TempMail trên Cloudflare Workers. Mỗi địa chỉ email tạm thời sẽ tự động có Email Routing rule.">
+  <link rel="icon" href="/logo.png">
+  <link rel="stylesheet" href="/assets/styles.css"/>
+  <style>
+    .page{max-width:760px;margin:0 auto;padding:48px 24px}
+    .page-tag{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;
+      color:var(--accent);background:rgba(139,92,246,.12);border:1px solid rgba(139,92,246,.3);
+      border-radius:20px;padding:4px 12px;margin-bottom:20px}
+    .page h1{font-size:42px;font-weight:700;line-height:1.1;margin-bottom:12px}
+    .page>p.lede{color:var(--muted);font-size:15px;line-height:1.6;margin-bottom:40px}
+    .step{display:flex;gap:20px;margin-bottom:32px}
+    .step-num{width:36px;height:36px;border-radius:50%;background:var(--accent);
+      color:#fff;font-weight:700;font-size:14px;display:flex;align-items:center;
+      justify-content:center;flex-shrink:0;margin-top:2px}
+    .step-content h3{font-size:16px;font-weight:600;margin-bottom:8px}
+    .step-content p{color:var(--muted);font-size:14px;line-height:1.6;margin-bottom:12px}
+    .callout{background:rgba(234,179,8,.08);border:1px solid rgba(234,179,8,.25);
+      border-radius:8px;padding:12px 16px;font-size:13px;color:#fbbf24;margin-top:8px;line-height:1.5}
+    .callout.info{background:rgba(59,130,246,.08);border-color:rgba(59,130,246,.25);color:#60a5fa}
+    .callout.success{background:rgba(34,197,94,.08);border-color:rgba(34,197,94,.25);color:#4ade80}
+    .code-block{background:var(--surface2);border:1px solid var(--border);border-radius:8px;
+      padding:16px;font-family:ui-monospace,monospace;font-size:13px;margin-top:8px;overflow-x:auto;white-space:pre-wrap;line-height:1.5}
+    .code-block .comment{color:var(--muted)}
+    .code-block .key{color:var(--accent);font-weight:600}
+    .back-link{display:inline-flex;align-items:center;gap:6px;color:var(--muted);
+      font-size:13px;margin-bottom:32px}
+    .back-link:hover{color:var(--text)}
+    .note{background:var(--surface);border:1px solid var(--border);border-radius:8px;
+      padding:20px 24px;margin-top:40px}
+    .note h3{font-size:14px;font-weight:600;margin-bottom:12px;color:var(--muted)}
+    .note ul{padding-left:20px;display:flex;flex-direction:column;gap:6px}
+    .note li{font-size:13px;color:var(--muted);line-height:1.6}
+  </style>
+</head>
+<body>
+  <nav class="navbar">
+    <a class="brand" href="/">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
+      <span>TempMail</span>
+    </a>
+    <div class="nav-links">
+      <a href="/" class="nav-link">Hộp thư</a>
+      <a href="/domain" class="nav-link" style="color:var(--text)">Domain</a>
+      <a href="/api" class="nav-link">API</a>
+    </div>
+  </nav>
+
+  <div class="page">
+    <a href="/" class="back-link">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m15 18-6-6 6-6"/></svg>
+      Về trang chủ
+    </a>
+    <div class="page-tag">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20"/><path d="M2 12h20"/></svg>
+      Quản lý Domain
+    </div>
+    <h1>Thêm Domain<br>của bạn</h1>
+    <p class="lede">Kết nối domain riêng vào hệ thống TempMail để tạo địa chỉ email tạm thời với tên miền của bạn. Hệ thống tự động tạo Email Routing rule cho mỗi địa chỉ mới qua <code>POST /api/new_address</code> (xem <a href="/api">API docs</a>).</p>
+
+    <div class="step">
+      <div class="step-num">1</div>
+      <div class="step-content">
+        <h3>Chuyển DNS domain về Cloudflare</h3>
+        <p>Domain của bạn phải dùng Cloudflare làm DNS. Nếu chưa, hãy vào nhà đăng ký domain và đổi nameserver về Cloudflare. Sau đó thêm domain vào tài khoản Cloudflare tại <strong>dash.cloudflare.com</strong> trên cùng account <code>sevengotek@gmail.com</code> (account ID <code>ac634c95…</code>).</p>
+        <div class="callout">Nếu domain đang dùng cho email thật, hãy dùng subdomain (vd: <strong>tmp.yourdomain.com</strong>) để tránh ảnh hưởng đến email hiện tại.</div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-num">2</div>
+      <div class="step-content">
+        <h3>Bật Email Routing</h3>
+        <p>Vào <strong>Cloudflare Dashboard → yourdomain.com → Email → Email Routing</strong>, bật Email Routing. MX records sẽ tự động được thêm (route1/2/3.mx.cloudflare.net).</p>
+        <div class="callout success">Không cần tạo Catch-all rule — hệ thống sẽ tự tạo per-address rule khi user gọi <code>POST /api/new_address</code> thông qua <a href="/api">API</a>. Đây là cơ chế <strong>Option A</strong> trong codebase, work-around cho việc CF API reject literal <code>*</code> matcher.</div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-num">3</div>
+      <div class="step-content">
+        <h3>Cập nhật <code>DOMAINS</code> trong <code>worker/wrangler.toml</code></h3>
+        <p>Sửa 2 dòng <code>DOMAINS</code> và <code>DEFAULT_DOMAINS</code> trong file <code>worker/wrangler.toml</code> (gitignored, local-only). Thêm domain mới vào array, phân cách bằng dấu phẩy:</p>
+        <div class="code-block"><span class="key">DOMAINS</span> = ["miraclelab.online", "yourdomain.com"]
+<span class="key">DEFAULT_DOMAINS</span> = ["miraclelab.online"]  <span class="comment"># chỉ domain mặc định user mới thấy trong dropdown</span></div>
+        <div class="callout info">Nếu muốn user tạo address với subdomain bất kỳ (vd: <code>tmp.yourdomain.com</code>), bật <code>ENABLE_CREATE_ADDRESS_SUBDOMAIN_MATCH = true</code> ở <code>wrangler.toml</code>.</div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-num">4</div>
+      <div class="step-content">
+        <h3>Deploy + test</h3>
+        <p>Sau khi sửa <code>wrangler.toml</code>, deploy lại worker:</p>
+        <div class="code-block">npx wrangler deploy --minify</div>
+        <p>Test thử bằng cách tạo 1 địa chỉ mới qua API:</p>
+        <div class="code-block">curl -X POST https://mail-api.miraclelab.online/api/new_address \
+  -H "Content-Type: application/json" \
+  -d '{"name":"smoke","domain":"yourdomain.com"}'</div>
+        <p>Nếu response 200, kiểm tra trong Cloudflare Dashboard → Email → Routing Rules sẽ thấy 1 literal rule mới được tạo tự động với tag <code>addr-{address_id}-{local_part}</code>.</p>
+      </div>
+    </div>
+
+    <div class="note">
+      <h3>ℹ️ Lưu ý quan trọng</h3>
+      <ul>
+        <li>Phải cấu hình <strong>CF API key</strong> trong Worker secrets (đã setup trong project này, xem <code>CONTEXT.md</code> §13.1-13.3). Worker dùng Global API Key để tạo/xoá Email Routing rule qua CF API.</li>
+        <li>Mỗi CF zone giới hạn <strong>~10,000 routing rules</strong>. Đủ cho use case personal temp email.</li>
+        <li>Không cần (và không nên) tạo Catch-all rule với action <code>worker</code> — CF API không chấp nhận literal <code>*</code> matcher. Hệ thống tạo per-address rule thay thế (Option A).</li>
+        <li>Address bị xoá qua <code>DELETE /api/delete_address</code> sẽ tự động xoá Email Routing rule tương ứng (cleanup). Không cần thao tác thủ công.</li>
+        <li>D1 có sẵn 23 addresses từ test trước. Mỗi address tương ứng 1 Email Routing rule. Cleanup định kỳ qua <code>auto_cleanup</code> setting.</li>
+      </ul>
+    </div>
+  </div>
+</body>
+</html>

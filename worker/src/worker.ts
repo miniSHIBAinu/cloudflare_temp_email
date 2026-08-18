@@ -69,6 +69,9 @@ app.use('/*', async (c, next) => {
 	if (c.env.ASSETS && /^\/api\/?$/.test(c.req.path)) {
 		return setCharsetForHtml(await c.env.ASSETS.fetch(new URL('/api.html', c.req.url)));
 	}
+	if (c.env.ASSETS && /^\/domain\/?$/.test(c.req.path)) {
+		return setCharsetForHtml(await c.env.ASSETS.fetch(new URL('/domain.html', c.req.url)));
+	}
 
 	// check if the request is for static files
 	if (c.env.ASSETS && !API_PATHS.some(path => c.req.path.startsWith(path))) {

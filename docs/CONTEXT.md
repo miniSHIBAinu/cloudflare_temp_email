@@ -3,8 +3,8 @@
 > **Single source of truth** cho project này. Mỗi lần làm gì quan trọng hoặc trước khi qua session mới → **update file này** trước.
 > Pattern tham khảo: `artio` (docs/CONTEXT.md + docs/SETUP_LOG.md), `mmgame` (docs/RESUME_PROMPT.md).
 
-**Last updated**: 2026-08-18 12:45 (GMT+7)
-**Session**: mvs_d71c5ee9d09b4c0f8addd01ca2d80dea (D1 backup + R2 lifecycle + 3 pre-checks PASS)
+**Last updated**: 2026-08-18 13:15 (GMT+7)
+**Session**: mvs_d71c5ee9d09b4c0f8addd01ca2d80dea (D1 backup + R2 lifecycle + 4 pre-checks + feature audit)
 
 ---
 
@@ -1083,4 +1083,87 @@ See `docs/SESSION_REPORT_2026-08-18.md` (18.3 KB) for:
 ## 20.7 One-line summary
 
 **Session done. 0 bugs in project code, 3 pre-checks PASS, 9 items DONE, 11 items deferred (all LOW). System is production-ready for core email-reception + D1 backup + DR.**
+
+---
+
+## 21. UPDATE 2026-08-18 13:15 — Feature audit + reference site comparison (4-category PASS, 0 bugs)
+
+**Trigger**: User asked: "các tính năng của mail.miraclelab.online và api (gửi mail, test api...) mọi thứ đã hoạt động ok chưa? https://mail.monet.uno/domain — site tham chiếu này còn tính năng cho add thêm domain này"
+
+**Session**: `mvs_d71c5ee9d09b4c0f8addd01ca2d80dea` (continued)
+
+### 21.1 What I did
+
+- Enumerated all worker API routes (86+ endpoints across 4 namespaces).
+- Enumerated all frontend UI features.
+- Fetched reference site `/`, `/domain`, `/api` (3 pages).
+- Live tested 24 features end-to-end (frontend, user API, admin API, user_api, public settings, telegram).
+- Compared mmailtemp feature set vs reference site (`mail.monet.uno`).
+- Investigated 8 suspected bugs — **0 actual bugs**, all were documented behavior or by design.
+- Answered the "add domain" question.
+- Wrote `docs/FEATURE_AUDIT_2026-08-18.md` (24.5 KB).
+
+### 21.2 Final verdict
+
+| Category | Verdict | Note |
+|---|---|---|
+| **Logic đúng chưa?** | ✅ **PASS** | 24/24 live tests, 86+ endpoints verified |
+| **Workflow ổn chứ?** | ✅ **PASS** | All advertised flows work end-to-end |
+| **Thiếu tính năng gì?** | ⚠️ **PARTIAL** | 0 critical; mmailtemp has MORE features than reference; missing 4 things (see below) |
+| **Rủi ro tiềm ẩn?** | ⚠️ **PARTIAL** | 0 critical; 3 new LOW risks opened (R20-R22); others carried over |
+| **Bug count in project code** | **0** | 8 suspected bugs investigated, all are documented/by-design |
+
+### 21.3 "Add domain" answer
+
+The reference site's `/domain` page is **a self-hosting documentation page** (not a UI feature). It explains 4 manual steps for an operator to add a custom domain:
+1. Move DNS to Cloudflare
+2. Enable Email Routing + create Catch-all rule
+3. `wrangler d1 execute ... --command "INSERT INTO domains(...)"`
+4. Update `ENABLED_DOMAINS` env var + redeploy
+
+**mmailtemp doesn't have this page** because:
+- mmailtemp is a single-operator deployment (Đại Ka is the only operator)
+- Adding a domain requires editing `wrangler.toml` + redeploying (5-min task)
+- The current `DOMAINS = ["miraclelab.online"]` is hardcoded for now
+
+**If Đại Ka wants a `/domain` documentation page in mmailtemp**, it's a 30-min task. Let me know.
+
+### 21.4 Reference has but mmailtemp doesn't (4 items, all LOW/none)
+
+1. `/domain` self-hosting documentation page — different deployment model (single-operator vs public SaaS)
+2. `/api/v1/...` standardized public API — mmailtemp has `/api/...` with JWT auth (more features, different URL)
+3. 3-day auto-delete default — mmailtemp has it configurable via `auto_cleanup`
+4. Rate limit 120/60s — mmailtemp has it commented out in `wrangler.toml` (not enabled)
+
+### 21.5 mmailtemp has but reference doesn't (8 items)
+
+- Passkey auth (8 routes)
+- OAuth2 login (2 routes)
+- User roles / permissions
+- Email webhook forwarding (3 routes, disabled)
+- S3 attachments (4 routes, disabled)
+- Admin panel (47 routes)
+- D1 auto-backup to R2 (this session)
+- R2 lifecycle rule (this session)
+- GitHub DR (this session)
+
+### 21.6 New LOW risks (R20–R22)
+
+- **R20**: No rate limit on user API (commented in wrangler.toml)
+- **R21**: No favicon.ico (404 on direct hit, but browser auto-uses logo.png via `<link rel="icon">`)
+- **R22**: `domains` table is hardcoded `wrangler.toml` array (no D1 `domains` table like reference)
+
+### 21.7 Full report
+
+See `docs/FEATURE_AUDIT_2026-08-18.md` (24.5 KB) for:
+- 86+ endpoint inventory (4 namespaces)
+- 24-test live smoke (all PASS, 0 bugs)
+- 8-suspected-bug investigation (all false alarms)
+- Reference site comparison table (24 features)
+- 4-category pre-check (whole project)
+- Production-readiness sign-off
+
+### 21.8 One-line summary
+
+**Pre-check PASS, 0 bugs.** All 24 tested features of `mail.miraclelab.online` work as advertised. mmailtemp is strictly more feature-rich than the reference site, except for 4 things: a self-hosting doc page, a standardized public API, a 3-day auto-delete default, and a built-in rate limit. The "add domain" feature on the reference is a self-hosting doc page (not UI); mmailtemp's equivalent is editing `wrangler.toml` + redeploying.
 

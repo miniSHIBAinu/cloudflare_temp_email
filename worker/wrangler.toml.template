@@ -162,6 +162,13 @@ binding = "DB"
 database_name = "xxx"
 database_id = "xxx"
 
+# D1 -> R2 auto-backup destination (optional, see worker/src/d1_backup.ts)
+# Create the bucket first: `wrangler r2 bucket create <your-bucket-name>`
+# Then enable scheduled dump (writes backup-YYYY-MM-DD.sql on every cron trigger)
+# [[r2_buckets]]
+# binding = "BACKUP"
+# bucket_name = "your-backup-bucket-name"
+
 # Workers AI binding (required for AI email extraction)
 # [ai]
 # binding = "AI"

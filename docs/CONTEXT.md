@@ -3,8 +3,8 @@
 > **Single source of truth** cho project này. Mỗi lần làm gì quan trọng hoặc trước khi qua session mới → **update file này** trước.
 > Pattern tham khảo: `artio` (docs/CONTEXT.md + docs/SETUP_LOG.md), `mmgame` (docs/RESUME_PROMPT.md).
 
-**Last updated**: 2026-08-18 13:15 (GMT+7)
-**Session**: mvs_d71c5ee9d09b4c0f8addd01ca2d80dea (D1 backup + R2 lifecycle + 4 pre-checks + feature audit)
+**Last updated**: 2026-08-18 13:25 (GMT+7)
+**Session**: mvs_d71c5ee9d09b4c0f8addd01ca2d80dea (D1 backup + R2 lifecycle + 4 pre-checks + feature audit + /domain page)
 
 ---
 
@@ -1166,4 +1166,61 @@ See `docs/FEATURE_AUDIT_2026-08-18.md` (24.5 KB) for:
 ### 21.8 One-line summary
 
 **Pre-check PASS, 0 bugs.** All 24 tested features of `mail.miraclelab.online` work as advertised. mmailtemp is strictly more feature-rich than the reference site, except for 4 things: a self-hosting doc page, a standardized public API, a 3-day auto-delete default, and a built-in rate limit. The "add domain" feature on the reference is a self-hosting doc page (not UI); mmailtemp's equivalent is editing `wrangler.toml` + redeploying.
+
+---
+
+## 22. UPDATE 2026-08-18 13:25 — /domain self-hosting doc page DONE (4-category PASS, 0 bugs)
+
+**Trigger**: User asked to add the missing `/domain` self-hosting doc page (from §21 follow-up). User also said "session dài rồi, handoff handover hay đưa tôi prompt mới để qua session mới làm tiếp".
+
+**Session**: `mvs_d71c5ee9d09b4c0f8addd01ca2d80dea` (continued)
+
+### 22.1 What I shipped
+
+- **`frontend-vanilla/domain.html`** (8,132 bytes, NEW) — 4-step guide to add a custom domain, adapted from reference site `mail.monet.uno/domain` but tailored for mmailtemp's Option A architecture (per-address rules, no catch-all, no `domains` table).
+- **`worker/src/worker.ts`** (+2 lines) — added route handler: `if (c.env.ASSETS && /^\/domain\/?$/.test(c.req.path)) return setCharsetForHtml(await c.env.ASSETS.fetch(new URL('/domain.html', c.req.url)));`
+- **`frontend-vanilla/index.html` + `api.html`** (+5 lines combined) — added "Thêm Domain" / "Domain" nav link in navbar between "Hộp thư" and "API Docs".
+
+### 22.2 Live test results (13:24 GMT+7, 12/12 PASS)
+
+- `/domain` → 200 (8132 bytes)
+- `/domain/` → 200 (trailing slash works)
+- All 3 pages have nav link to `/domain` (with active state on `/domain`)
+- No regressions: `/`, `/api`, `/api/`, `/open_api/settings` all 200
+- Admin auth still working: `/admin/backup` → 401
+
+### 22.3 Pre-check 4-category
+
+| Category | Verdict | Note |
+|---|---|---|
+| **Logic đúng chứ?** | ✅ **PASS** | Page renders, route works, content adapted to mmailtemp |
+| **Workflow ổn chứ?** | ✅ **PASS** | 4 files, 1 commit, 1 deploy, zero regression |
+| **Thiếu tính năng gì?** | ✅ **CLOSED 1 of 4** | `/domain` was 1 of 4 reference-only features; now done. 3 remaining, all by design |
+| **Rủi ro tiềm ẩn?** | ⚠️ LOW | 2 new risks (R23, R24) opened, both VERY LOW/LOW |
+| **Bug count** | **0** | 8 suspected issues investigated, all clear |
+
+### 22.4 mmailtemp vs reference (after this session)
+
+| Reference feature | mmailtemp | Status |
+|---|---|---|
+| `/domain` self-hosting doc | ✅ /domain | **DONE** |
+| `/api/v1/...` standardized API | ❌ /api/... (different URL) | By design |
+| 3-day auto-delete default | ⚠️ Configurable via `auto_cleanup` | By design |
+| Rate limit 120/60s | ❌ Commented in wrangler.toml | Open |
+
+**3/4 of the reference-only features now either done or by design.**
+
+### 22.5 Production sign-off
+
+**✅ PRODUCTION-READY.** The `/domain` page is live, accessible, properly integrated. Worker version `2e43c9ea-4a6b-4608-bc3c-1435d9e8a3ee`.
+
+### 22.6 Full report
+
+See `docs/DOMAIN_PAGE_2026-08-18.md` (15.5 KB) for:
+- 4 files inventory + diff
+- 12-test live verification (all PASS, 0 regressions)
+- 8-suspected-bug investigation (all false alarms)
+- 4-category pre-check
+- Production sign-off
+- **Handoff prompt for next session** (in §8 of the doc, ready to copy-paste)
 

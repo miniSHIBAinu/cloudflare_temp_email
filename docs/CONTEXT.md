@@ -3,8 +3,8 @@
 > **Single source of truth** cho project này. Mỗi lần làm gì quan trọng hoặc trước khi qua session mới → **update file này** trước.
 > Pattern tham khảo: `artio` (docs/CONTEXT.md + docs/SETUP_LOG.md), `mmgame` (docs/RESUME_PROMPT.md).
 
-**Last updated**: 2026-08-18 12:30 (GMT+7)
-**Session**: mvs_d71c5ee9d09b4c0f8addd01ca2d80dea (D1 auto-backup DONE + 4-category pre-check PASS, 0 bugs)
+**Last updated**: 2026-08-18 12:40 (GMT+7)
+**Session**: mvs_d71c5ee9d09b4c0f8addd01ca2d80dea (D1 backup + R2 lifecycle rule + 2 pre-checks PASS)
 
 ---
 
@@ -921,11 +921,7 @@ npx wrangler d1 execute temp-email-db --file=./restore.sql --remote
 
 ```bash
 # Tạo lifecycle rule: xóa backup-*.sql cũ hơn 30 ngày
-curl -X PUT "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/r2/buckets/mmailtemp-backup/lifecycle" \
-  -H "X-Auth-Email: $CLOUDFLARE_GLOBAL_EMAIL" \
-  -H "X-Auth-Key: $CLOUDFLARE_GLOBAL_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{"rules":[{"id":"expire-old-backups","enabled":true,"prefix":"backup-","deleteObjects":{"olderThanDays":30}}]}'
+wrangler r2 bucket lifecycle add mmailtemp-backup expire-old-backups backup- --expire-days 30 --force
 ```
 
 (Or via Dashboard → R2 → mmailtemp-backup → Settings → Lifecycle rules.)
@@ -933,4 +929,69 @@ curl -X PUT "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_I
 ### 18.6 Full report
 
 See `docs/PRECHECK_2026-08-18-D1-BACKUP.md` for the 22.7 KB detailed audit (8 sections, 18 risks catalogued, 4 observations, 5 SQL checks, 14 smoke tests).
+
+---
+
+## 19. UPDATE 2026-08-18 12:40 — R2 lifecycle rule DONE, pre-check PASS
+
+**Trigger**: User requested to run the §18.5 recommended next step (5-min R2 lifecycle rule) + immediate pre-check.
+
+**Session**: `mvs_d71c5ee9d09b4c0f8addd01ca2d80dea` (continued)
+
+### 19.1 What I shipped
+
+Added 1 R2 lifecycle rule to the `mmailtemp-backup` bucket via wrangler CLI:
+
+- **Rule id**: `expire-old-backups`
+- **Prefix**: `backup-` (only matches the D1 backup files, not anything else)
+- **Action**: Delete objects after **30 days** (2592000 seconds)
+- **Status**: `enabled: Yes`
+
+**Command** (5 minutes, no code change needed):
+
+```bash
+wrangler r2 bucket lifecycle add mmailtemp-backup expire-old-backups backup- --expire-days 30 --force
+```
+
+This addresses **R12** from the §18 risk table (no lifecycle rule → R2 grows forever).
+
+### 19.2 Verification (4 checks)
+
+| Check | Method | Result |
+|---|---|---|
+| Rule persisted | `wrangler r2 bucket lifecycle list` | ✅ `expire-old-backups: Yes / backup- / Expire objects after 30 days` |
+| Rule visible via API | `GET /accounts/.../r2/buckets/.../lifecycle` | ✅ id=`expire-old-backups`, prefix=`backup-`, maxAge=2592000 |
+| Existing backup not affected | `GET /accounts/.../r2/buckets/.../objects` | ✅ `backup-2026-08-18.sql` still there (only 0 days old) |
+| Default multipart-abort rule still there | `list` | ✅ `Default Multipart Abort Rule: Yes / (all prefixes) / Abort after 7 days` |
+
+### 19.3 Pre-check 4-category
+
+| # | Category | Verdict | Note |
+|---|---|---|---|
+| 1 | **Logic đúng chưa?** | ✅ PASS | Rule applied with correct prefix + duration. Verified via wrangler + CF API |
+| 2 | **Workflow ổn chưa?** | ⚠️ PARTIAL | `add` is NOT idempotent (re-run returns error 10061). `remove` requires `--name` flag. Workaround: `remove --name` then `add` again, or use `set --file <json>` for atomic updates |
+| 3 | **Thiếu tính năng gì?** | ❌ NO | R12 (R2 bloat) is now mitigated. Other gaps (notification, restore endpoint, unit tests) are still in §18.4 |
+| 4 | **Rủi ro tiềm ẩn?** | ⚠️ NEW R19 | If user wants a >30-day-old backup for audit/legal, it's GONE. R2 lifecycle is irreversible (deleted objects cannot be recovered). Mitigation: documented 30-day window; can change to 60/90 days by re-running rule |
+
+### 19.4 Bug sweep (1 minor CLI quirk found — accepted)
+
+**Wrangler CLI quirk**: `wrangler r2 bucket lifecycle add` is **NOT idempotent**. Re-running with the same rule id returns `Invalid Lifecycle Configuration: Rule IDs must be unique [code: 10061]`. To "update" an existing rule, the workflow is:
+1. `wrangler r2 bucket lifecycle remove <bucket> --name <rule_name>`
+2. `wrangler r2 bucket lifecycle add <bucket> <new_name> [prefix] --expire-days <new_days> --force`
+
+Alternative: `wrangler r2 bucket lifecycle set <bucket> --file <json>` for atomic updates (replaces all rules at once).
+
+Not a bug in our project code (this is wrangler behavior), but worth noting if user wants to change the rule later.
+
+### 19.5 Items resolved / newly opened
+
+| Status | Item | Note |
+|---|---|---|
+| ✅ RESOLVED | R12: No R2 lifecycle rule | Now mitigated by 30-day expire rule |
+| 🆕 NEW R19 | Backups > 30 days are GONE | Documented; can change to 60/90 days if needed |
+| 🆕 NEW CLI-QUIRK | `wrangler r2 bucket lifecycle add` not idempotent | See §19.4 above |
+
+### 19.6 Full report
+
+See `docs/PRECHECK_2026-08-18-LIFECYCLE.md` for the 1-page detailed audit (4 checks, 1 CLI quirk, 1 new risk).
 

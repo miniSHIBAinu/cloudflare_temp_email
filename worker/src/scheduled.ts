@@ -4,6 +4,7 @@ import { CONSTANTS } from './constants'
 import { getJsonSetting } from './utils';
 import { CleanupSettings } from './models';
 import { executeCustomSqlCleanup } from './admin_api/cleanup_api';
+import { exportD1ToR2 } from './d1_backup';
 
 export async function scheduled(event: ScheduledEvent, env: Bindings, ctx: any) {
     console.log("Scheduled event: ", event);
@@ -78,5 +79,15 @@ export async function scheduled(event: ScheduledEvent, env: Bindings, ctx: any) 
                 }
             }
         }
+    }
+
+    // D1 -> R2 backup (runs on every cron trigger; safe to fail without affecting cleanup above)
+    if (env.BACKUP) {
+        const backupResult = await exportD1ToR2(env);
+        if (!backupResult.success) {
+            console.error(`[scheduled] D1 backup failed: ${backupResult.error}`);
+        }
+    } else {
+        console.log("[scheduled] BACKUP R2 binding not configured, skipping D1 backup.");
     }
 }

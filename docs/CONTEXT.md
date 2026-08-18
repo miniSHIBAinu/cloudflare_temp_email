@@ -3,8 +3,71 @@
 > **Single source of truth** cho project này. Mỗi lần làm gì quan trọng hoặc trước khi qua session mới → **update file này** trước.
 > Pattern tham khảo: `artio` (docs/CONTEXT.md + docs/SETUP_LOG.md), `mmgame` (docs/RESUME_PROMPT.md).
 
-**Last updated**: 2026-08-18 10:35 (GMT+7)
-**Session**: mvs_1277a31b40484aecb05faea714c6958e (in progress — Option A deployed + 4-category pre-check PASS)
+**Last updated**: 2026-08-18 11:00 (GMT+7)
+**Session**: mvs_1277a31b40484aecb05faea714c6958e (in progress — GitHub push DONE, D1 backup TODO)
+
+---
+
+## 15. UPDATE 2026-08-18 11:00 — GitHub push DONE, D1 backup TODO
+
+### 15.1 GitHub push completed
+
+- **Repo**: `https://github.com/miniSHIBAinu/cloudflare_temp_email` (public, fork of `monet88/cloudflare_temp_email`)
+- **Public reason**: GitHub free plan doesn't allow private fork of public repo. Parent is public anyway.
+- **Size**: 9.6 MB
+- **Commits pushed**:
+  - `064c40b` — feat: Option A per-address rules + BOM fix + B2/B3 bugfixes + precheck 2026-08-18 (this session)
+  - `4f0b44d` — chore: upgrade Vitest to v4 (upstream inherited)
+- **Token handling**: Per memory, removed token from remote URL after push (`git remote set-url github https://github.com/...git`). Token no longer leaks via `git remote -v`.
+
+### 15.2 Secrets redacted in docs
+
+GitHub Push Protection blocked initial push due to full tokens in docs. Redacted in:
+- `docs/CONTEXT.md` (5 lines)
+- `docs/PRECHECK_2026-08-17.md` (3 lines)
+- `docs/SETUP_LOG.md` (2 lines)
+
+Pattern: `cfk_***`, `cfut_***`, `ghp_***`, `vcp_***` (full values replaced with `<REDACTED: TYPE_***>`)
+
+### 15.3 .gitignore verification (PASS)
+
+Sensitive patterns: 8/9 ignored (the "fail" was my test using fake path `_test_.env` which doesn't match `.env` literal). Real file `.env`, `.env.local`, `wrangler.toml`, `BACKEND_TOML`, `FRONTEND_ENV`, `PAGE_TOML`, `*.key`, `*.pem`, `service-account*.json`, `*.apk`, `*.mp4` all properly ignored.
+
+AI agent patterns correctly:
+- IGNORE: `.agents/logs/`, `.agents/cache/`, `.agents/memory/`, `.agents/sessions/`, `.agents/scratch/`, `.agents/drafts/`, `.claude/memory/`, etc.
+- KEEP: `.agents/skills/`, `.agents/workflows/`, `.agents/rules/`, `.agents/AGENTS.md`, `.mcp.json`, `.claude/skills/`
+
+### 15.4 D1 auto-backup cron → R2 (TODO for next session)
+
+**Why this is important**:
+- Currently 23 addresses + 2 raw_mails in D1
+- Time Travel 30 days is the only backup (free plan)
+- If D1 corrupted or accidentally deleted, lose all user data
+- 1-2h work to implement
+
+**Implementation plan** (for next session):
+1. **Create R2 bucket** via CF API: `POST /accounts/{id}/r2/buckets` with name `mmailtemp-backup`
+2. **Get R2 access keys** via CF API: `POST /accounts/{id}/r2/tokens` with `object:write` permission
+3. **Add R2 binding to wrangler.toml**:
+   ```toml
+   [[r2_buckets]]
+   binding = "BACKUP"
+   bucket_name = "mmailtemp-backup"
+   ```
+4. **Modify `worker/src/scheduled.ts`**: add `exportD1ToR2(env)` function
+   - Query all D1 tables: `address`, `raw_mails`, `sendbox`, `auto_reply_mails`, `address_sender`, `users_address`, `settings`
+   - Build SQL dump (CREATE TABLE + INSERT statements)
+   - Upload to R2 with key `backup-{YYYY-MM-DD}.sql`
+5. **Test cron trigger** (currently `0 0 * * *` = daily midnight)
+6. **Add wrangler secret put R2_ACCESS_KEY + R2_SECRET_KEY** (if using S3-compatible API)
+   - Actually R2 has different auth model. Need to investigate.
+7. **Deploy + test** with manual cron trigger
+
+**Branch strategy** (per Đại Ka guidance): Use `feat/d1-backup-r2` branch, PR back to main after verified.
+
+### 15.5 Handoff prompt (for next session)
+
+See section 16 below.
 
 ---
 
@@ -633,3 +696,101 @@ npx wrangler email routing rules create miraclelab.online \
 | 6 | Gitignore OK? | ✅ | Cover secrets, build, env, AI agent rác. GIỮ `.agents/skills/`, `.claude/skills/`, `.mcp.json` |
 | 7 | Security OK? | ✅ | CSP, X-Content-Type-Options, Referrer-Policy, Cache-Control headers. JWT secret trong wrangler.toml (gitignored). CF Web Analytics token đúng (của mình) |
 | 8 | Tài liệu đầy đủ? | ✅ | docs/CONTEXT.md, ANALYSIS.md, SETUP_LOG.md, SESSION_3_REPORT.md, CONTRIBUTING.md, SECURITY.md |
+
+---
+
+## 16. HANDOFF PROMPT � Next session (2026-08-18 11:00)
+
+**Copy-paste do?n sau v�o session m?i:**
+
+``
+Project: G:\VIBE\mmailtemp\_clone_tmp\ (fork of github.com/monet88/cloudflare_temp_email)
+Stack: Cloudflare Workers (Hono) + D1 + Worker [assets] for vanilla frontend + Email Routing
+Domain: miraclelab.online (CF account sevengotek@gmail.com)
+Worker: cloudflare_temp_email (version edf8e26b, deployed via wrangler)
+D1: temp-email-db (UUID 99d25375-9773-4571-8b7a-ae6871dba0d3)
+Frontend: rontend-vanilla/ (vanilla HTML/CSS/JS, 50KB total)
+
+?? GIT BACKUP DONE: Repo pushed to https://github.com/miniSHIBAinu/cloudflare_temp_email (public fork).
+   Commit  64c40b = feat: Option A per-address rules + BOM fix + B2/B3 bugfixes.
+
+?? READ FIRST: docs/PRECHECK_2026-08-18.md (16.9KB) � 4-category audit + 5 bugs fixed
+?? Single source: docs/CONTEXT.md (sections 1-15)
+?? Setup log: docs/SETUP_LOG.md
+?? Latest commit: git log -1 ?  64c40b Option A + B2/B3 + BOM
+
+Env: read from G:\VIBE\mmailtemp\.env.local (gitignored)
+- CLOUDFLARE_GLOBAL_EMAIL=sevengotek@gmail.com
+- CLOUDFLARE_GLOBAL_TOKEN=cfk_*** (Global API Key, full scope)
+- CLOUDFLARE_API_TOKEN=cfut_*** (newer, account-level)
+- CLOUDFLARE_ACCOUNT_ID=ac634c95b84b2c72e3ce2c221374b52b
+- GITHUB_TOKEN=ghp_*** (account miniSHIBAinu, NOT monet88)
+- VERCEL_TOKEN=vcp_***
+
+Features WORKING (HTTP layer + email reception):
+? Worker serve frontend + API tr�n mail.miraclelab.online
+? Email Routing per-address rules (Option A) � auto-created on POST /api/new_address
+? 7 API endpoints: settings, new_address, parsed_mails, parsed_mail, mails, delete_address
+? Security headers: CSP, X-CTO, Referrer-Policy, Cache-Control
+? Auto-refresh 5s, JWT localStorage, URL hash routing
+? Frontend vanilla (50KB) + /api docs page
+? GitHub push: https://github.com/miniSHIBAinu/cloudflare_temp_email (commit 064c40b)
+
+Features BROKEN: NONE (all critical features work)
+
+Features TODO (priority order):
+1. ?? D1 auto-backup cron ? R2 (R7 mitigation) - HIGH priority, 1-2h work
+2. ?? Disable rule 0fa4fc6b cleanup verification (DONE in this session, verify state)
+3. ?? Send mail (Resend API) - deferred D4
+4. ?? AI extract (Workers AI) - deferred D4
+5. ?? Telegram bot - deferred D4
+6. ?? Cleanup 23 stale D1 addresses
+
+NEXT TASK (light, ~30-60 min):
+**Implement D1 auto-backup cron ? R2** (see CONTEXT �15.4 for plan)
+
+Steps:
+1. Read CONTEXT �15.4 for implementation plan
+2. Create R2 bucket via CF API: POST /accounts/{ac634c95b...}/r2/buckets with name mmailtemp-backup
+3. Get R2 access keys (or use API token with R2 scope)
+4. Add R2 binding to worker/wrangler.toml
+5. Modify worker/src/scheduled.ts to export D1 ? SQL ? upload to R2 (key: ackup-{YYYY-MM-DD}.sql)
+6. Deploy + test with manual cron trigger
+7. Verify backup file appears in R2
+8. Commit on eat/d1-backup-r2 branch, PR to main (per �?i Ka: "t�nh nang m?i, n?u c?n thi?t l� ph?i t?o pr m?i new branch")
+
+How to deploy:
+`powershell
+cd 'G:\VIBE\mmailtemp\_clone_tmp\worker'
+Get-Content 'G:\VIBE\mmailtemp\.env.local' | ForEach-Object {
+    if ($_ -match '^\s*([^#][^=]*)=(.*)$') {
+        Set-Item -Path "Env:$([1].Trim())" -Value $matches[2].Trim()
+    }
+}
+$env:CLOUDFLARE_API_KEY = $env:CLOUDFLARE_GLOBAL_TOKEN
+$env:CLOUDFLARE_EMAIL = $env:CLOUDFLARE_GLOBAL_EMAIL
+npx.cmd wrangler deploy --minify
+`
+
+How to test D1 query:
+`powershell
+npx.cmd wrangler d1 execute temp-email-db --command "SELECT COUNT(*) as cnt FROM raw_mails" --remote
+`
+
+How to rollback:
+- CF Dashboard ? Workers ? cloudflare_temp_email ? Deployments ? click version ? Rollback
+- OR: 
+px.cmd wrangler rollback
+
+How to trigger cron manually (after deploy):
+- 
+px.cmd wrangler triggers deploy (if available) OR add manual cron test endpoint
+
+Git workflow:
+- For new features: git checkout -b feat/<name> (e.g., eat/d1-backup-r2)
+- Commit + push to github feat/<name> (NOT origin = monet88)
+- After verified: PR eat/d1-backup-r2 ? main on GitHub
+- Then merge to main + push
+
+?? .env.local tokens have been redacted in docs (CONTEXT �15.2) to allow GitHub push. Real tokens still in G:\VIBE\mmailtemp\.env.local.
+``

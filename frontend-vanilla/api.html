@@ -1,0 +1,247 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>API Docs — TempMail</title>
+  <meta name="description" content="REST API cho dịch vụ email tạm thời trên Cloudflare Workers + D1.">
+  <link rel="icon" href="/logo.png">
+  <link rel="stylesheet" href="/assets/styles.css"/>
+</head>
+<body>
+  <nav class="navbar">
+    <a class="brand" href="/">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
+      TempMail
+    </a>
+    <div class="nav-links">
+      <a href="/" class="nav-link">Hộp thư</a>
+      <a href="/api" class="nav-link active">API Docs</a>
+    </div>
+  </nav>
+
+  <div style="max-width:900px;margin:0 auto;padding:32px 24px 0">
+    <h1 style="font-size:36px;font-weight:700;margin-bottom:8px">API Documentation</h1>
+    <p style="color:var(--muted);font-size:15px">REST API tích hợp TempMail. Tất cả endpoint yêu cầu <code>Authorization: Bearer &lt;JWT&gt;</code> trừ <code>/open_api/settings</code>. JWT nhận được từ <code>POST /api/new_address</code>.</p>
+  </div>
+
+  <div class="doc-tabs" id="doc-tabs">
+    <button class="doc-tab active" data-tab="intro">Giới thiệu</button>
+    <button class="doc-tab" data-tab="endpoints">API Endpoints</button>
+    <button class="doc-tab" data-tab="examples">Ví dụ</button>
+    <button class="doc-tab" data-tab="errors">Xử lý lỗi</button>
+    <button class="doc-tab" data-tab="notes">Ghi chú</button>
+  </div>
+
+  <div class="doc-wrap">
+
+    <!-- Introduction -->
+    <div class="doc-section active" id="tab-intro">
+      <p class="section-intro">Backend chạy trên Cloudflare Workers + D1. Frontend vanilla HTML/JS gọi trực tiếp các endpoint dưới đây. Mỗi address khi tạo sẽ trả về <code>jwt</code> dùng cho các request tiếp theo (Bearer token).</p>
+      <div class="base-url-box">
+        <span class="label">BASE URL</span>
+        <code id="base-url-val"></code>
+        <button class="copy-btn" onclick="copyText(document.getElementById('base-url-val').textContent,this)">Copy</button>
+      </div>
+      <div class="toc">
+        <h3>📋 Mục lục</h3>
+        <ol>
+          <li><a href="#" onclick="switchTab('intro')">Giới thiệu</a></li>
+          <li><a href="#" onclick="switchTab('endpoints')">API Endpoints</a>
+            <ul class="sub">
+              <li>→ <a href="#" onclick="switchTab('endpoints')">Lấy danh sách domain</a></li>
+              <li>→ <a href="#" onclick="switchTab('endpoints')">Tạo địa chỉ email</a></li>
+              <li>→ <a href="#" onclick="switchTab('endpoints')">Lấy thông tin settings</a></li>
+              <li>→ <a href="#" onclick="switchTab('endpoints')">Xem hộp thư</a></li>
+              <li>→ <a href="#" onclick="switchTab('endpoints')">Đọc email</a></li>
+              <li>→ <a href="#" onclick="switchTab('endpoints')">Xóa email</a></li>
+              <li>→ <a href="#" onclick="switchTab('endpoints')">Xóa toàn bộ address</a></li>
+            </ul>
+          </li>
+          <li><a href="#" onclick="switchTab('examples')">Ví dụ sử dụng</a></li>
+          <li><a href="#" onclick="switchTab('errors')">Xử lý lỗi</a></li>
+          <li><a href="#" onclick="switchTab('notes')">Ghi chú &amp; Giới hạn</a></li>
+        </ol>
+      </div>
+    </div>
+
+    <!-- Endpoints -->
+    <div class="doc-section" id="tab-endpoints">
+
+      <div class="ep-block">
+        <div class="ep-title">
+          <h3>1. Lấy danh sách domain &amp; settings</h3>
+          <div class="ep-line"><span class="method GET">GET</span><span class="ep-path">/open_api/settings</span></div>
+          <p class="ep-desc">Trả về cấu hình service + danh sách domain khả dụng. Không cần auth.</p>
+        </div>
+        <div class="ep-body">
+          <div class="section-label">RESPONSE</div>
+          <div class="code-block">{ "title": "...", "domains": ["miraclelab.online"], "defaultDomains": ["miraclelab.online"], "prefix": "tmp", "needAuth": false, "enableUserCreateEmail": true, "enableUserDeleteEmail": true, "minAddressLen": 1, "maxAddressLen": 30, ... }</div>
+        </div>
+      </div>
+
+      <div class="ep-block">
+        <div class="ep-title">
+          <h3>2. Tạo địa chỉ email tạm thời</h3>
+          <div class="ep-line"><span class="method POST">POST</span><span class="ep-path">/api/new_address</span></div>
+          <p class="ep-desc">Tạo một địa chỉ email mới. Trả về JWT dùng cho các request tiếp theo.</p>
+        </div>
+        <div class="ep-body">
+          <div class="section-label">PARAMETERS (body, JSON)</div>
+          <table class="param-table">
+            <thead><tr><th>Tham số</th><th>Kiểu</th><th>Mô tả</th></tr></thead>
+            <tbody>
+              <tr><td><code class="param-name">name</code></td><td class="param-type">string, optional</td><td class="param-desc">Username tuỳ chỉnh. Nếu không gửi, server tự tạo random (kèm prefix nếu có). Tối đa 30 ký tự.</td></tr>
+              <tr><td><code class="param-name">domain</code></td><td class="param-type">string, optional</td><td class="param-desc">Domain cụ thể (phải nằm trong danh sách domain khả dụng). Mặc định: domain đầu tiên.</td></tr>
+            </tbody>
+          </table>
+          <div class="section-label" style="margin-top:16px">RESPONSE</div>
+          <div class="code-block">{ "jwt": "eyJhbGc...", "address": "tmpjohndoe@miraclelab.online", "password": null, "address_id": 42 }</div>
+        </div>
+      </div>
+
+      <div class="ep-block">
+        <div class="ep-title">
+          <h3>3. Lấy thông tin settings của address</h3>
+          <div class="ep-line"><span class="method GET">GET</span><span class="ep-path">/api/settings</span></div>
+          <p class="ep-desc">Trả về thông tin của address hiện tại (dựa trên JWT) + send balance.</p>
+        </div>
+        <div class="ep-body">
+          <div class="section-label">HEADERS</div>
+          <div class="code-block">Authorization: Bearer &lt;JWT&gt;</div>
+          <div class="section-label" style="margin-top:14px">RESPONSE</div>
+          <div class="code-block">{ "address": "tmpjohndoe@miraclelab.online", "send_balance": 0 }</div>
+        </div>
+      </div>
+
+      <div class="ep-block">
+        <div class="ep-title">
+          <h3>4. Xem danh sách email trong hộp thư</h3>
+          <div class="ep-line"><span class="method GET">GET</span><span class="ep-path">/api/parsed_mails?limit=20&amp;offset=0</span></div>
+          <p class="ep-desc">Lấy danh sách email đã nhận (đã parse sẵn: sender, subject, text, html).</p>
+        </div>
+        <div class="ep-body">
+          <div class="section-label">QUERY PARAMS</div>
+          <table class="param-table">
+            <thead><tr><th>Tham số</th><th>Kiểu</th><th>Mô tả</th></tr></thead>
+            <tbody>
+              <tr><td><code class="param-name">limit</code></td><td class="param-type">number, default 20</td><td class="param-desc">Số email tối đa trả về</td></tr>
+              <tr><td><code class="param-name">offset</code></td><td class="param-type">number, default 0</td><td class="param-desc">Phân trang (luôn gửi 0 cho trang đầu)</td></tr>
+            </tbody>
+          </table>
+          <div class="section-label" style="margin-top:14px">RESPONSE</div>
+          <div class="code-block">{ "results": [ { "id": 1, "address": "tmpjohndoe@miraclelab.online", "sender": "noreply@github.com", "subject": "Verify your email", "text": "...", "html": "...", "attachments": [], "created_at": "2026-08-17 14:30:00" } ], "count": 1 }</div>
+        </div>
+      </div>
+
+      <div class="ep-block">
+        <div class="ep-title">
+          <h3>5. Đọc nội dung đầy đủ một email</h3>
+          <div class="ep-line"><span class="method GET">GET</span><span class="ep-path">/api/parsed_mail/:id</span></div>
+          <p class="ep-desc">Lấy nội dung đầy đủ (text + html) của email theo id.</p>
+        </div>
+        <div class="ep-body">
+          <div class="section-label">RESPONSE</div>
+          <div class="code-block">{ "id": 1, "address": "tmpjohndoe@miraclelab.online", "sender": "noreply@github.com", "subject": "Verify your email", "text": "Click here to verify...", "html": "&lt;p&gt;Click &lt;a href='...'&gt;here&lt;/a&gt; to verify&lt;/p&gt;", "attachments": [], "created_at": "2026-08-17 14:30:00" }</div>
+        </div>
+      </div>
+
+      <div class="ep-block">
+        <div class="ep-title">
+          <h3>6. Xóa một email</h3>
+          <div class="ep-line"><span class="method DELETE">DELETE</span><span class="ep-path">/api/mails/:id</span></div>
+          <p class="ep-desc">Xóa email cụ thể theo id. Cần <code>ENABLE_USER_DELETE_EMAIL=true</code> trên worker.</p>
+        </div>
+        <div class="ep-body">
+          <div class="section-label">RESPONSE</div>
+          <div class="code-block">{ "success": true }</div>
+        </div>
+      </div>
+
+      <div class="ep-block">
+        <div class="ep-title">
+          <h3>7. Xóa toàn bộ address (hộp thư + địa chỉ)</h3>
+          <div class="ep-line"><span class="method DELETE">DELETE</span><span class="ep-path">/api/delete_address</span></div>
+          <p class="ep-desc">Xóa address hiện tại (theo JWT) và toàn bộ email trong hộp thư. Hành động không thể hoàn tác.</p>
+        </div>
+        <div class="ep-body">
+          <div class="section-label">RESPONSE</div>
+          <div class="code-block">{ "success": true }</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Examples -->
+    <div class="doc-section" id="tab-examples">
+      <p class="section-intro">Ví dụ dùng <code style="background:var(--surface2);padding:1px 6px;border-radius:3px">curl</code> với <code style="background:var(--surface2);padding:1px 6px;border-radius:3px">BASE_URL</code> = URL service của bạn.</p>
+
+      <div class="section-label">1. Lấy danh sách domain</div>
+      <div class="code-block" style="position:relative"><button class="copy-btn" onclick="copyCode(this)">Copy</button>curl -s "BASE_URL/open_api/settings" | jq '.domains, .defaultDomains'</div>
+
+      <div class="section-label" style="margin-top:20px">2. Tạo email ngẫu nhiên</div>
+      <div class="code-block" style="position:relative"><button class="copy-btn" onclick="copyCode(this)">Copy</button>curl -s -X POST "BASE_URL/api/new_address" -H "Content-Type: application/json" -d '{}' | jq</div>
+
+      <div class="section-label" style="margin-top:20px">3. Tạo email với username tuỳ chỉnh</div>
+      <div class="code-block" style="position:relative"><button class="copy-btn" onclick="copyCode(this)">Copy</button>curl -s -X POST "BASE_URL/api/new_address" -H "Content-Type: application/json" -d '{"name":"myname","domain":"miraclelab.online"}' | tee /tmp/result.json
+# Lưu JWT
+JWT=$(jq -r .jwt /tmp/result.json)
+echo "Address: $(jq -r .address /tmp/result.json)"</div>
+
+      <div class="section-label" style="margin-top:20px">4. Xem hộp thư (cần JWT)</div>
+      <div class="code-block" style="position:relative"><button class="copy-btn" onclick="copyCode(this)">Copy</button>curl -s "BASE_URL/api/parsed_mails?limit=20&offset=0" -H "Authorization: Bearer $JWT" | jq '.results | length'</div>
+
+      <div class="section-label" style="margin-top:20px">5. Đọc một email</div>
+      <div class="code-block" style="position:relative"><button class="copy-btn" onclick="copyCode(this)">Copy</button>curl -s "BASE_URL/api/parsed_mail/1" -H "Authorization: Bearer $JWT" | jq '{sender, subject, text}'</div>
+
+      <div class="section-label" style="margin-top:20px">6. Xoá một email</div>
+      <div class="code-block" style="position:relative"><button class="copy-btn" onclick="copyCode(this)">Copy</button>curl -s -X DELETE "BASE_URL/api/mails/1" -H "Authorization: Bearer $JWT" | jq</div>
+    </div>
+
+    <!-- Error Handling -->
+    <div class="doc-section" id="tab-errors">
+      <p class="section-intro">Hầu hết endpoint trả về JSON. Lỗi thường là HTTP 4xx/5xx với body text hoặc JSON dạng <code style="background:var(--surface2);padding:1px 6px;border-radius:3px">{ "error": "..." }</code>.</p>
+
+      <div class="section-label">CÁC MÃ LỖI PHỔ BIẾN</div>
+      <table class="error-table">
+        <thead><tr><th>HTTP Status</th><th>Nguyên nhân</th><th>Cách xử lý</th></tr></thead>
+        <tbody>
+          <tr><td>400</td><td>Body JSON thiếu/sai, hoặc address không tồn tại trong DB</td><td>Kiểm tra payload, đảm bảo address_id tồn tại</td></tr>
+          <tr><td>401</td><td>JWT hết hạn / sai format / không gửi kèm Bearer</td><td>Tạo lại address mới, lưu JWT mới</td></tr>
+          <tr><td>403</td><td>Tính năng bị tắt (vd: delete email khi ENABLE_USER_DELETE_EMAIL=false), Turnstile fail</td><td>Kiểm tra config worker</td></tr>
+          <tr><td>429</td><td>Rate limit (chỉ áp dụng /api/new_address, /api/send_mail)</td><td>Đợi 60s rồi retry, hoặc giảm tần suất</td></tr>
+          <tr><td>500</td><td>Lỗi server (D1 down, parser fail, etc.)</td><td>Retry sau vài giây, check Worker logs</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Notes -->
+    <div class="doc-section" id="tab-notes">
+      <div class="note-box">⚠️ Email tạm thời sẽ tự động bị xóa sau <strong>3 ngày</strong> kể từ khi tạo (cleanup job chạy lúc 0:00 UTC hàng ngày qua cron trigger).</div>
+      <div class="note-box info">ℹ️ Rate limit: <strong>10 request / 60 giây</strong> cho mỗi IP tại <code>/api/new_address</code> và <code>/api/send_mail</code>. Các endpoint khác chưa giới hạn.</div>
+      <div class="note-box success">✅ Không cần đăng ký / API key. Tạo address là dùng được ngay. Mỗi address là 1 session độc lập với JWT riêng.</div>
+      <p style="color:var(--muted);font-size:13px;margin-top:20px;line-height:1.7">
+        Hệ thống chạy trên Cloudflare Workers + D1 — đảm bảo tốc độ cao và độ trễ thấp trên toàn cầu.
+        Email được xử lý qua Cloudflare Email Routing (wildcard <code>*@miraclelab.online</code> → worker) và lưu trữ tạm trong D1 trước khi tự động dọn dẹp.
+      </p>
+    </div>
+
+  </div>
+
+  <script>
+    document.getElementById('base-url-val').textContent = location.origin;
+    function switchTab(name) {
+      document.querySelectorAll('.doc-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === name));
+      document.querySelectorAll('.doc-section').forEach(s => s.classList.toggle('active', s.id === 'tab-' + name));
+    }
+    document.querySelectorAll('.doc-tab').forEach(t => t.onclick = () => switchTab(t.dataset.tab));
+    function copyText(text, btn) {
+      navigator.clipboard.writeText(text).then(() => { btn.textContent = 'Copied!'; setTimeout(() => btn.textContent = 'Copy', 1500); });
+    }
+    function copyCode(btn) {
+      const text = btn.parentElement.textContent.replace('Copy', '').trim();
+      copyText(text, btn);
+    }
+  </script>
+<script type="module" src="https://static.cloudflareinsights.com/beacon.min.js/v4513226cdae34746b4dedf0b4dfa099e1781791509496" integrity="sha512-ZE9pZaUXND66v380QUtch/5sE9tPFh2zg45pR2PB0CVkCtOREv2AJKkSidISWkysEuQ0EH8faUU5du78bx87UQ==" data-cf-beacon='{"version":"2024.11.0","token":"ae50c9da3cc048cc806621e56e9e3ef0","r":1}' crossorigin="anonymous"></script>
+</body>
+</html>

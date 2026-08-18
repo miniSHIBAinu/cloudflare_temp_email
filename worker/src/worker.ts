@@ -26,6 +26,33 @@ const API_PATHS = [
 	"/external/",
 ];
 
+// Ensure HTML responses declare charset=utf-8 + add security headers
+const setCharsetForHtml = (resp: Response): Response => {
+	const ct = resp.headers.get("content-type") || "";
+	if (!ct.toLowerCase().includes("text/html")) return resp;
+	const headers = new Headers(resp.headers);
+	if (!ct.toLowerCase().includes("charset=")) {
+		headers.set("content-type", "text/html; charset=utf-8");
+	}
+	// Security headers for HTML pages
+	headers.set("x-content-type-options", "nosniff");
+	headers.set("referrer-policy", "no-referrer");
+	// CSP: allow our own assets, CF turnstile, CF insights beacon, and inline styles (api.html has them)
+	headers.set("content-security-policy", "default-src 'self'; script-src 'self' https://challenges.cloudflare.com https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self'; frame-src 'self' https://challenges.cloudflare.com; base-uri 'self'; form-action 'self';");
+	return new Response(resp.body, { status: resp.status, statusText: resp.statusText, headers });
+};
+
+// Add cache headers for static assets (CSS/JS/images)
+const setCacheForStatic = (resp: Response): Response => {
+	const ct = resp.headers.get("content-type") || "";
+	if (ct.toLowerCase().includes("text/html")) return resp; // already handled above
+	const headers = new Headers(resp.headers);
+	headers.set("x-content-type-options", "nosniff");
+	// CSS/JS/images: 1 hour cache, then revalidate
+	headers.set("cache-control", "public, max-age=3600, must-revalidate");
+	return new Response(resp.body, { status: resp.status, statusText: resp.statusText, headers });
+};
+
 const app = new Hono<HonoCustomType>()
 //cors
 app.use('/*', cors());
@@ -37,13 +64,32 @@ app.onError((err, c) => {
 // global middlewares
 app.use('/*', async (c, next) => {
 
+	// explicit static page routes (must come BEFORE the API_PATHS check,
+	// since paths like /api/ would otherwise be treated as API requests)
+	if (c.env.ASSETS && /^\/api\/?$/.test(c.req.path)) {
+		return setCharsetForHtml(await c.env.ASSETS.fetch(new URL('/api.html', c.req.url)));
+	}
+
 	// check if the request is for static files
 	if (c.env.ASSETS && !API_PATHS.some(path => c.req.path.startsWith(path))) {
 		const url = new URL(c.req.raw.url);
-		if (!url.pathname.includes('.')) {
-			url.pathname = ""
+		// Root path: SPA fallback to index.html
+		if (url.pathname === "/" || url.pathname === "") {
+			const resp = await c.env.ASSETS.fetch(new URL("/index.html", c.req.url));
+			return setCharsetForHtml(resp);
 		}
-		return c.env.ASSETS.fetch(url);
+		// Paths with extension: serve as static asset (CSS/JS/images)
+		if (url.pathname.includes('.')) {
+			const resp = await c.env.ASSETS.fetch(url);
+			// pick the right post-processor: HTML pages get charset + security headers,
+			// static assets (CSS/JS/images) get cache + nosniff
+			const ct = resp.headers.get("content-type") || "";
+			return (ct.toLowerCase().includes("text/html"))
+				? setCharsetForHtml(resp)
+				: setCacheForStatic(resp);
+		}
+		// No extension + not root: not a static asset, not SPA fallback.
+		// Fall through to next() so route handlers (e.g. /health_check) can respond.
 	}
 
 	// save language in context

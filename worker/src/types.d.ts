@@ -120,6 +120,13 @@ type Bindings = {
 
     // E2E testing
     E2E_TEST_MODE: string | boolean | undefined
+
+    // CF Email Routing (per-address rules via API)
+    // CF_API_KEY is a secret — set via `wrangler secret put CF_API_KEY`
+    CF_API_KEY: string | undefined
+    CF_API_EMAIL: string | undefined
+    CF_ZONE_ID: string | undefined
+    CF_WORKER_NAME: string | undefined
 }
 
 type JwtPayload = {

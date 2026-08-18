@@ -142,3 +142,107 @@ pnpm-lock.yaml
 e2e/test-results/
 e2e/playwright-report/
 e2e/.e2e-pids
+
+# ===========================================
+# SECRETS / CREDENTIALS (extended protection)
+# ===========================================
+# GitHub Actions secrets (when used as files for local testing)
+BACKEND_TOML
+FRONTEND_ENV
+PAGE_TOML
+# Generic secrets
+*.pem
+*.key
+*.cert
+*.crt
+service-account*.json
+*-credentials.json
+secrets/
+# Editor / OS
+Thumbs.db
+*.swp
+*.swo
+*~
+
+# ===========================================
+# LARGE BINARY ARTIFACTS (Supabase/Firebase/Google bots scan)
+# ===========================================
+*.apk
+*.aab
+*.ipa
+*.exe
+*.dll
+*.so
+*.dylib
+*.mp4
+*.mov
+*.avi
+*.mkv
+*.webm
+*.mp3
+*.wav
+*.flac
+*.zip
+*.tar.gz
+*.tar
+*.7z
+*.rar
+*.pdf
+*.psd
+*.ai
+*.sketch
+*.fig
+*.bin
+*.iso
+*.dmg
+
+# ===========================================
+# AI AGENT TOOLING - per-machine rac (KHONG commit)
+# GIU LAI: .agents/skills/, .agents/AGENTS.md, .agents/workflows/, .agents/rules/, .mcp.json
+# ===========================================
+# Claude Code per-machine state
+.claude/memory/
+.claude/cache/
+.claude/logs/
+.claude/scratch/
+.claude/tmp/
+.claude/settings.local.json
+.claude/homunculus/drafts/
+.claude/plugins/data/
+.claude/plugins/cache/
+# Codex CLI per-machine state
+.codex/sessions/
+.codex/logs/
+.codex/cache/
+# Gemini CLI per-machine state
+.gemini/logs/
+.gemini/cache/
+# Cursor per-machine state
+.cursor/
+# Agents (giu skills + rules + workflows, bo rac)
+.agents/logs/
+.agents/cache/
+.agents/memory/
+.agents/sessions/
+.agents/scratch/
+.agents/drafts/
+# Build/cache cho AI dev tools
+.turbo/
+.codegraph/
+.codex-home/
+codex-sessions/
+
+# ===========================================
+# PROJECT-SPECIFIC (cloudflare_temp_email)
+# ===========================================
+# Mail parser WASM build artifacts
+mail-parser-wasm/target/
+mail-parser-wasm/pkg/
+# Python SMTP/IMAP proxy
+smtp_proxy_server/__pycache__/
+smtp_proxy_server/venv/
+smtp_proxy_server/.venv/
+smtp_proxy_server/*.pyc
+# VitePress docs cache
+vitepress-docs/.vitepress/cache/
+vitepress-docs/.vitepress/dist/

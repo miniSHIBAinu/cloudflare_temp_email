@@ -7,6 +7,7 @@ import { unbindTelegramByAddress } from './telegram_api/common';
 import { CONSTANTS } from './constants';
 import { AddressCreationSettings, AdminWebhookSettings, ExtractResult, WebhookMail, WebhookSettings } from './models';
 import i18n from './i18n';
+import { createRoutingRuleForAddress, deleteRoutingRuleForAddress, isCfEmailRoutingConfigured } from './cf_email_routing';
 
 const DEFAULT_NAME_REGEX = /[^a-z0-9]/g;
 const DEFAULT_RANDOM_SUBDOMAIN_LENGTH = 8;
@@ -419,6 +420,19 @@ export const newAddress = async (
             // 如果启用地址密码功能，自动生成密码
             const generatedPassword = await generatePasswordForAddress(c, address);
 
+            // create per-address Email Routing rule (so CF actually delivers mail to this address).
+            // Best effort: log on failure, don't fail address creation. User can retry via admin.
+            if (isCfEmailRoutingConfigured(c.env)) {
+                const ruleResult = await createRoutingRuleForAddress(c, address, address_id);
+                if (!ruleResult.success) {
+                    console.warn(
+                        `[newAddress] CF rule creation failed for ${address} (id=${address_id}):`,
+                        ruleResult.error,
+                        "— address can still be used via API, but incoming mail may not deliver until rule is created."
+                    );
+                }
+            }
+
             // create jwt
             const jwt = await Jwt.sign({
                 address: address,
@@ -579,6 +593,17 @@ export const deleteAddressWithData = async (
     }
     // unbind telegram
     await unbindTelegramByAddress(c, address);
+    // delete per-address CF Email Routing rule (best effort, before deleting D1 row)
+    if (isCfEmailRoutingConfigured(c.env)) {
+        const ruleResult = await deleteRoutingRuleForAddress(c, address);
+        if (!ruleResult.success) {
+            console.warn(
+                `[deleteAddressWithData] CF rule deletion failed for ${address}:`,
+                ruleResult.error,
+                "— proceeding with D1 cleanup. Rule will remain orphaned on CF side."
+            );
+        }
+    }
     // delete address and related data
     const { success: mailSuccess } = await c.env.DB.prepare(
         `DELETE FROM raw_mails WHERE address = ? `

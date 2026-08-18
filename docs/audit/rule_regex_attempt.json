@@ -1,0 +1,17 @@
+{
+    "name": "All Mail Worker REGEX",
+    "enabled": true,
+    "matchers": [
+        {
+            "type": "regex",
+            "field": "to",
+            "value": "^.*@miraclelab\\.online$"
+        }
+    ],
+    "actions": [
+        {
+            "type": "worker",
+            "value": ["cloudflare_temp_email"]
+        }
+    ]
+}

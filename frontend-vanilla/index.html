@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>TempMail — Email tạm thời miễn phí</title>
+  <meta name="description" content="Dịch vụ email tạm thời miễn phí, tự host trên Cloudflare Workers + D1. Bảo vệ quyền riêng tư, nhận OTP tự động, API REST công khai.">
+  <meta name="theme-color" content="#09090b">
+  <link rel="icon" href="/logo.png">
+  <link rel="stylesheet" href="/assets/styles.css" />
+</head>
+<body>
+  <nav class="navbar">
+    <a class="brand" href="/">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
+      <span>TempMail</span>
+    </a>
+    <div class="nav-links">
+      <a href="/" class="nav-link">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m3 9 9 7 9-7"/><path d="M3 9V6a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v3"/><path d="M3 9v10a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V9"/></svg>
+        Hộp thư
+      </a>
+      <a href="/api" class="nav-link">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+        API Docs
+      </a>
+    </div>
+    <span class="realtime-dot">● Realtime</span>
+  </nav>
+
+  <div class="app-layout">
+    <aside class="sidebar">
+      <div class="sidebar-section">
+        <p class="sidebar-label">EMAIL HIỆN TẠI</p>
+        <p id="current-email" class="current-email">Chưa có địa chỉ</p>
+        <a id="url-email" class="url-email" href="#" title="Link chia sẻ hộp thư này"></a>
+        <button id="copy-btn" class="btn btn-primary">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+          Sao chép địa chỉ
+        </button>
+      </div>
+
+      <div id="otp-section" class="sidebar-section otp-section" style="display:none">
+        <p class="sidebar-label">MÃ 2FA / OTP MỚI NHẤT</p>
+        <div class="otp-row">
+          <code id="otp-code" class="otp-code">—</code>
+          <button id="copy-otp-btn" class="btn btn-sm btn-primary">Sao chép mã</button>
+        </div>
+      </div>
+
+      <div class="sidebar-section">
+        <p class="sidebar-label">Tuỳ chỉnh địa chỉ</p>
+        <div class="custom-row">
+          <input id="username-input" type="text" placeholder="username" autocomplete="off" spellcheck="false" />
+          <span class="at-sign">@</span>
+          <select id="domain-select"></select>
+        </div>
+        <button id="generate-btn" class="btn btn-accent">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M3 22v-6h6"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/></svg>
+          Tạo Email Ngẫu Nhiên
+        </button>
+      </div>
+
+      <div class="stats-grid">
+        <div class="stat-card">
+          <p id="inbox-count" class="stat-num">0</p>
+          <p class="stat-label">Trong hộp thư</p>
+        </div>
+        <div class="stat-card">
+          <p id="domain-count" class="stat-num">0</p>
+          <p class="stat-label">Domains hoạt động</p>
+        </div>
+      </div>
+
+      <div class="sidebar-section howto">
+        <p class="sidebar-label">CÁCH SỬ DỤNG</p>
+        <ol>
+          <li>Sao chép địa chỉ email ở trên</li>
+          <li>Dùng để đăng ký dịch vụ bất kỳ</li>
+          <li>Email sẽ xuất hiện ngay tại đây</li>
+        </ol>
+      </div>
+    </aside>
+
+    <main class="inbox-area">
+      <div class="inbox-header">
+        <div class="inbox-title-row">
+          <h2>Hộp thư đến</h2>
+          <code id="email-badge" class="email-badge"></code>
+          <span id="unread-count" class="unread-badge">0</span>
+        </div>
+        <div class="inbox-toolbar">
+          <label class="toggle-label">
+            <input id="auto-refresh-toggle" type="checkbox" checked />
+            <span>Auto-refresh</span>
+          </label>
+          <button id="delete-all-btn" class="btn btn-danger btn-sm">Xóa tất cả</button>
+        </div>
+      </div>
+
+      <div id="empty-state" class="empty-state">
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" opacity=".3"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
+        <h3>Hộp thư đang chờ email</h3>
+        <p>Sao chép địa chỉ email ở bên trái và dùng để đăng ký.<br>Email sẽ xuất hiện ngay tại đây.</p>
+      </div>
+
+      <div id="message-pager" class="message-pager" style="display:none">
+        <label class="page-size-label">Show:
+          <select id="page-size">
+            <option value="10">10</option>
+            <option value="20" selected>20</option>
+            <option value="50">50</option>
+          </select>
+          emails per page
+        </label>
+        <span id="pager-status" class="pager-status">Hiển thị 0 email</span>
+        <div class="pager-buttons">
+          <button id="prev-page" class="pager-btn">Previous</button>
+          <span id="pager-page" class="pager-page">1</span>
+          <button id="next-page" class="pager-btn">Next</button>
+        </div>
+      </div>
+
+      <div id="message-table-wrap" class="message-table-wrap" style="display:none">
+        <table id="message-table" class="message-table">
+          <thead><tr><th>SENDER</th><th>SUBJECT</th><th>DATE</th><th>ACTIONS</th></tr></thead>
+          <tbody id="inbox-body"></tbody>
+        </table>
+      </div>
+
+      <section id="message-detail" class="message-detail" style="display:none" aria-live="polite">
+        <h3>Email Detail</h3>
+        <div class="detail-divider"></div>
+        <p><strong>Sender:</strong> <span id="detail-from"></span></p>
+        <p><strong>Subject:</strong> <span id="detail-subject"></span></p>
+        <p><strong>Date:</strong> <span id="detail-date"></span></p>
+        <p><strong>Body:</strong></p>
+        <div id="detail-body" class="detail-body"></div>
+      </section>
+    </main>
+  </div>
+
+  <div id="inline-error" class="inline-error" role="alert"></div>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <script src="/assets/app.js"></script>
+<script type="module" src="https://static.cloudflareinsights.com/beacon.min.js/v4513226cdae34746b4dedf0b4dfa099e1781791509496" integrity="sha512-ZE9pZaUXND66v380QUtch/5sE9tPFh2zg45pR2PB0CVkCtOREv2AJKkSidISWkysEuQ0EH8faUU5du78bx87UQ==" data-cf-beacon='{"version":"2024.11.0","token":"ae50c9da3cc048cc806621e56e9e3ef0","r":1}' crossorigin="anonymous"></script>
+</body>
+</html>

@@ -3,8 +3,8 @@
 > **Single source of truth** cho project này. Mỗi lần làm gì quan trọng hoặc trước khi qua session mới → **update file này** trước.
 > Pattern tham khảo: `artio` (docs/CONTEXT.md + docs/SETUP_LOG.md), `mmgame` (docs/RESUME_PROMPT.md).
 
-**Last updated**: 2026-08-18 11:00 (GMT+7)
-**Session**: mvs_1277a31b40484aecb05faea714c6958e (in progress — GitHub push DONE, D1 backup TODO)
+**Last updated**: 2026-08-18 11:30 (GMT+7)
+**Session**: mvs_d71c5ee9d09b4c0f8addd01ca2d80dea (D1 auto-backup DONE, PR #1 merged)
 
 ---
 
@@ -37,33 +37,14 @@ AI agent patterns correctly:
 - IGNORE: `.agents/logs/`, `.agents/cache/`, `.agents/memory/`, `.agents/sessions/`, `.agents/scratch/`, `.agents/drafts/`, `.claude/memory/`, etc.
 - KEEP: `.agents/skills/`, `.agents/workflows/`, `.agents/rules/`, `.agents/AGENTS.md`, `.mcp.json`, `.claude/skills/`
 
-### 15.4 D1 auto-backup cron → R2 (TODO for next session)
+### 15.4 D1 auto-backup cron → R2 (DONE — see §17)
 
-**Why this is important**:
-- Currently 23 addresses + 2 raw_mails in D1
-- Time Travel 30 days is the only backup (free plan)
-- If D1 corrupted or accidentally deleted, lose all user data
-- 1-2h work to implement
+**Why this was important** (now resolved):
+- Had 23 addresses + 2 raw_mails in D1 with no off-D1 backup
+- Time Travel 30 days was the only safety net (free plan)
+- See §17 for the implementation + verification log
 
-**Implementation plan** (for next session):
-1. **Create R2 bucket** via CF API: `POST /accounts/{id}/r2/buckets` with name `mmailtemp-backup`
-2. **Get R2 access keys** via CF API: `POST /accounts/{id}/r2/tokens` with `object:write` permission
-3. **Add R2 binding to wrangler.toml**:
-   ```toml
-   [[r2_buckets]]
-   binding = "BACKUP"
-   bucket_name = "mmailtemp-backup"
-   ```
-4. **Modify `worker/src/scheduled.ts`**: add `exportD1ToR2(env)` function
-   - Query all D1 tables: `address`, `raw_mails`, `sendbox`, `auto_reply_mails`, `address_sender`, `users_address`, `settings`
-   - Build SQL dump (CREATE TABLE + INSERT statements)
-   - Upload to R2 with key `backup-{YYYY-MM-DD}.sql`
-5. **Test cron trigger** (currently `0 0 * * *` = daily midnight)
-6. **Add wrangler secret put R2_ACCESS_KEY + R2_SECRET_KEY** (if using S3-compatible API)
-   - Actually R2 has different auth model. Need to investigate.
-7. **Deploy + test** with manual cron trigger
-
-**Branch strategy** (per Đại Ka guidance): Use `feat/d1-backup-r2` branch, PR back to main after verified.
+**Branch strategy** (per Đại Ka guidance): Use `feat/d1-backup-r2` branch, PR back to main after verified — done in §17.
 
 ### 15.5 Handoff prompt (for next session)
 
@@ -699,9 +680,9 @@ npx wrangler email routing rules create miraclelab.online \
 
 ---
 
-## 16. HANDOFF PROMPT � Next session (2026-08-18 11:00)
+## 16. HANDOFF PROMPT � Next session (2026-08-18 11:00)
 
-**Copy-paste do?n sau v�o session m?i:**
+**Copy-paste do?n sau v�o session m?i:**
 
 ``
 Project: G:\VIBE\mmailtemp\_clone_tmp\ (fork of github.com/monet88/cloudflare_temp_email)
@@ -714,7 +695,7 @@ Frontend: rontend-vanilla/ (vanilla HTML/CSS/JS, 50KB total)
 ?? GIT BACKUP DONE: Repo pushed to https://github.com/miniSHIBAinu/cloudflare_temp_email (public fork).
    Commit  64c40b = feat: Option A per-address rules + BOM fix + B2/B3 bugfixes.
 
-?? READ FIRST: docs/PRECHECK_2026-08-18.md (16.9KB) � 4-category audit + 5 bugs fixed
+?? READ FIRST: docs/PRECHECK_2026-08-18.md (16.9KB) � 4-category audit + 5 bugs fixed
 ?? Single source: docs/CONTEXT.md (sections 1-15)
 ?? Setup log: docs/SETUP_LOG.md
 ?? Latest commit: git log -1 ?  64c40b Option A + B2/B3 + BOM
@@ -728,8 +709,8 @@ Env: read from G:\VIBE\mmailtemp\.env.local (gitignored)
 - VERCEL_TOKEN=vcp_***
 
 Features WORKING (HTTP layer + email reception):
-? Worker serve frontend + API tr�n mail.miraclelab.online
-? Email Routing per-address rules (Option A) � auto-created on POST /api/new_address
+? Worker serve frontend + API tr�n mail.miraclelab.online
+? Email Routing per-address rules (Option A) � auto-created on POST /api/new_address
 ? 7 API endpoints: settings, new_address, parsed_mails, parsed_mail, mails, delete_address
 ? Security headers: CSP, X-CTO, Referrer-Policy, Cache-Control
 ? Auto-refresh 5s, JWT localStorage, URL hash routing
@@ -747,17 +728,17 @@ Features TODO (priority order):
 6. ?? Cleanup 23 stale D1 addresses
 
 NEXT TASK (light, ~30-60 min):
-**Implement D1 auto-backup cron ? R2** (see CONTEXT �15.4 for plan)
+**Implement D1 auto-backup cron ? R2** (see CONTEXT �15.4 for plan)
 
 Steps:
-1. Read CONTEXT �15.4 for implementation plan
+1. Read CONTEXT �15.4 for implementation plan
 2. Create R2 bucket via CF API: POST /accounts/{ac634c95b...}/r2/buckets with name mmailtemp-backup
 3. Get R2 access keys (or use API token with R2 scope)
 4. Add R2 binding to worker/wrangler.toml
 5. Modify worker/src/scheduled.ts to export D1 ? SQL ? upload to R2 (key: ackup-{YYYY-MM-DD}.sql)
 6. Deploy + test with manual cron trigger
 7. Verify backup file appears in R2
-8. Commit on eat/d1-backup-r2 branch, PR to main (per �?i Ka: "t�nh nang m?i, n?u c?n thi?t l� ph?i t?o pr m?i new branch")
+8. Commit on eat/d1-backup-r2 branch, PR to main (per �?i Ka: "t�nh nang m?i, n?u c?n thi?t l� ph?i t?o pr m?i new branch")
 
 How to deploy:
 `powershell
@@ -792,5 +773,98 @@ Git workflow:
 - After verified: PR eat/d1-backup-r2 ? main on GitHub
 - Then merge to main + push
 
-?? .env.local tokens have been redacted in docs (CONTEXT �15.2) to allow GitHub push. Real tokens still in G:\VIBE\mmailtemp\.env.local.
+?? .env.local tokens have been redacted in docs (CONTEXT �15.2) to allow GitHub push. Real tokens still in G:\VIBE\mmailtemp\.env.local.
 ``
+
+---
+
+## 17. UPDATE 2026-08-18 11:30 — D1 auto-backup DONE, PR #1 merged
+
+**Trigger**: Continued from §16 handoff prompt (Đại Ka said "paste prompt trên v�o session m?i, l�m ti?p D1 backup l� xong").
+
+**Session**: `mvs_d71c5ee9d09b4c0f8addd01ca2d80dea`
+
+### 17.1 What I shipped
+
+D1 → R2 auto-backup via Worker scheduled handler. Every cron trigger (`0 0 * * *` UTC) now:
+
+1. Reads `PRAGMA table_info` for 10 core tables
+2. Queries each table and formats rows as `INSERT INTO … VALUES (…)` (handles NULL / number / boolean / string / BLOB-hex)
+3. Wraps the whole dump in `BEGIN TRANSACTION` / `COMMIT`
+4. Uploads to R2 bucket `mmailtemp-backup` under key `backup-YYYY-MM-DD.sql`
+5. Tags the object with metadata: `tables`, `rows`, `generatedAt`
+
+**Files added/modified** (all on `feat/d1-backup-r2` branch, merged to main as `25f0ddb`):
+- `worker/src/d1_backup.ts` (new, 167 lines) — `exportD1ToR2(env)` + helpers
+- `worker/src/scheduled.ts` (+11 lines) — call `exportD1ToR2(env)` after cleanup; logs and continues on failure
+- `worker/src/admin_api/backup_api.ts` (new, 22 lines) — `POST /admin/backup` on-demand trigger
+- `worker/src/admin_api/index.ts` (+4 lines) — register the new route
+- `worker/src/types.d.ts` (+1 line) — `BACKUP: R2Bucket` binding
+- `worker/wrangler.toml.template` (+7 lines) — commented `[[r2_buckets]]` example for future clones
+
+**PR**: https://github.com/miniSHIBAinu/cloudflare_temp_email/pull/1 — squash-merged at `25f0ddb`.
+
+### 17.2 End-to-end verification (live)
+
+| Check | Result |
+|---|---|
+| `wrangler deploy --dry-run` | ✅ BACKUP binding detected |
+| `wrangler deploy` | ✅ Version `072cbcb6-4b7f-4b61-8f1a-b56f9001c340` (later: `f25b0b78` after admin reset, `1c30fc5c` after first keep_vars test) |
+| `POST /admin/backup` (with temp admin pw) | ✅ `{"success":true,"key":"backup-2026-08-18.sql","bytes":20441,"tables":2,"rows":25,"durationMs":1069}` |
+| Downloaded R2 object inspection | ✅ Header + `BEGIN TRANSACTION` + 25 INSERTs (23 address + 2 raw_mails) + 8 empty-table comments + `COMMIT` |
+| Smoke test on `/`, `/api/new_address` | ✅ Both 200, vanilla UI loads, new address created and cleaned up |
+| Admin endpoint after `ADMIN_PASSWORDS = []` redeploy | ✅ 401 (auth restored) |
+
+### 17.3 One annoying wrangler gotcha (worth remembering)
+
+`keep_vars = true` in `wrangler.toml` (which this project has) means wrangler will **not** delete a previously-set var when you remove the line from the config. I added `ADMIN_PASSWORDS = ["d1backup-test-2026"]` for testing, then removed it — the password was still active on the server. `--keep-vars=false` did **not** clear it either (probably because it's the JSON type). The fix that actually worked was to set `ADMIN_PASSWORDS = []` explicitly in `wrangler.toml` and redeploy — wrangler overwrites the value to empty, and `checkIsAdmin` returns false because the array is empty.
+
+**Take-away for future**: when adding a temp password / token via `wrangler.toml`, never rely on "remove the line + redeploy" — always set it to `[]` (or `""`) explicitly to force the value to be overwritten.
+
+### 17.4 R2 setup for fresh clones
+
+To enable this in a new environment:
+
+```bash
+# 1. Create the bucket
+npx wrangler r2 bucket create mmailtemp-backup
+
+# 2. Add to worker/wrangler.toml (gitignored, local-only)
+cat >> worker/wrangler.toml <<'EOF'
+
+[[r2_buckets]]
+binding = "BACKUP"
+bucket_name = "mmailtemp-backup"
+EOF
+
+# 3. Deploy
+npx wrangler deploy --minify
+```
+
+The `wrangler.toml.template` already carries a commented example so the next person cloning the repo sees the pattern.
+
+### 17.5 Restore procedure
+
+```bash
+# 1. Ensure schema (use the worker's own /admin/db_migration, or replay db/schema.sql)
+npx wrangler d1 execute temp-email-db --file=db/schema.sql --remote
+
+# 2. Pull the SQL from R2
+npx wrangler r2 object get mmailtemp-backup/backup-YYYY-MM-DD.sql --file=./restore.sql
+
+# 3. Replay it (will fail on UNIQUE conflicts if the destination has existing rows; DELETE first or sed the file to INSERT OR REPLACE)
+npx wrangler d1 execute temp-email-db --file=./restore.sql --remote
+```
+
+### 17.6 Open TODOs (revised)
+
+1. ~~D1 auto-export cron → R2 (HIGH)~~ — DONE
+2. ~~Push code to GitHub `miniSHIBAinu/cloudflare_temp_email`~~ — DONE
+3. Add R2 lifecycle rule to auto-delete backups older than 30 days (keeps R2 tidy, free tier stays free)
+4. Add batch delete endpoint (LOW)
+5. Cleanup 23 stale D1 addresses (LOW)
+6. Remove orphan Ethereal test scripts in `e2e/` (LOW)
+7. Enable Send mail (Resend API) (LOW, D4 deferred)
+8. Enable Workers AI extract (LOW, D4 deferred)
+9. Enable Telegram bot (LOW, D4 deferred)
+
